@@ -2,11 +2,12 @@ import User from '../models/user.model.js';
 import bcrypt from 'bcrypt';
 import sendEmail from '../utils/sendEmail.js';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 
 // Register User
 export const register = async (req, res) => {
     try {
-        const { name, email, password, role } = req.body();
+        const { name, email, password, role } = req.body;
         const userExists = await User.findOne({ email });
 
         if (userExists) {
@@ -84,7 +85,7 @@ export const login = async(req, res) => {
             })
         }
 
-        if(!user.isBlocked) {
+        if(user.isBlocked) {
             return res.status(403).json({
                 message: "Your account has been blocked. Please contact support."
             })
@@ -107,5 +108,119 @@ export const login = async(req, res) => {
         res.status(500).json({
             message: error.message,
         })
+    }
+}
+
+// to get profile
+export const getMe = async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id).select("-password");
+        if(!user) {
+            return res.status(404).json({
+                message: "User not found."
+            })
+        }
+
+        res.json({
+            success: true,
+            user,
+        })
+    } catch (error) {
+        res.status(500).json({
+            message: error.message,
+        })
+    }
+}
+
+
+// verify Email
+export const verifyEmail = async (req, res) => {
+    try {
+        const { email, code } = req.body;
+        if(!email || !code) return res.status(400).json({ message: "Email and code are required." });
+
+        const user = await User.findOne({ email });
+        if(!user) return res.status(404).json({ message: "User not found." });
+
+        if(user.isVerified) return res.status(400).json({ message: "Email is already verified." });
+
+        if(user.verificationToken !== code) return res.status(400).json({ message: "Invalid verification code." });
+
+        user.isVerified = true;
+        user.verificationToken = undefined;
+        await user.save();
+        res.status(200).json({ message: "Email verified successfully.", success: true });
+
+    } catch (error) {
+        res.status(500).json({
+            message: error.message,
+            success: false,
+        })
+    }
+}
+
+// forgot password
+export const forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+        const user = await User.findOne({ email });
+        if(!user) return res.status(404).json({ message: "No user is found with this email address." });
+
+        const resetToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+        const resetPasswordExpire = Date.now() + 15 * 60 * 1000; // 15 minutes
+        await user.save();
+
+        const clientUrl = "http://localhost:5173"; // frontend url
+        const resetUrl = `${clientUrl}/reset-password/${resetUrl}`;
+        const message = `
+        <h2>Password Reset Request</h2>
+        <p>You requested a password reset. Please click on the link below to reset your password:</p>
+        <a href="${resetUrl}" clicktracking="off">${resetUrl}</a>
+        <p>The link will expire in 15 minutes.</p>
+        `
+
+        try {
+            await sendEmail({
+                email: user.email,
+                subject: "Password reset - Propertier",
+                message,
+            })
+            res.status(200).json({ message: "Password reset email sent.", success: true });
+        } catch (error) {
+            user.resetPasswordToken = undefined;
+            user.resetPasswordExpire = undefined;
+            await user.save();
+            return res.status(500).json({ message: "Could not send email.", success: false});
+        }
+
+    } catch (error) {
+        res.status(500).json({ message: error.message, success: false });
+    }
+}
+
+// for reset password, we require the email
+// now to reset password
+export const resetPassword = async (res, req) => {
+    try {
+        const { token } = req.params;
+        const { password } = req.body;
+
+        const resetPasswordToken = crypto.createHash("sha256").update(token).digest("hex");
+        
+        const user = await User.findOne({
+            resetPasswordToken,
+            resetPasswordExpire: { $gt: Date.now() },
+        });
+        if(!user) return res.status(400).json({ message: "Invalid or expired password reset token.", success: false });
+
+        user.password = await bcrypt.hash(password, 10);
+        user.resetPasswordToken = undefined;
+        user.resetPasswordExpire = undefined;
+
+        await user.save();
+        res.status(200).json({ message: "Password updated successfully.", success: true })
+
+    } catch (error) {
+        res.status(500).json({ message: error.message, success: false });
     }
 }
