@@ -26,6 +26,7 @@ Adopted layered structure for maintainability:
 - `middlewares` -> auth/guard logic
 - `routes` -> API endpoint mapping
 - `utils` -> reusable helpers (email sending)
+- `tests` -> unit and integration tests
 
 ### 3) User model implementation
 
