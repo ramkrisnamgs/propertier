@@ -7,6 +7,8 @@ import authRouter from './routes/auth.routes.js';
 import userRouter from './routes/user.routes.js';
 import propertyRouter from './routes/property.routes.js';
 import inquiryRouter from './routes/inquiry.routes.js';
+import wishlistRouter from './routes/wishlist.routes.js';
+import contactRouter from './routes/contact.routes.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -23,6 +25,8 @@ app.use("/api/auth", authRouter);
 app.use("/api/user", userRouter);
 app.use("/api/property", propertyRouter);
 app.use("/api/inquiry", inquiryRouter);
+app.use("/api/wishlist", wishlistRouter);
+app.use("/api/contact", contactRouter);
 
 app.get("/", (req, res) => {
     res.send("API is working!")
