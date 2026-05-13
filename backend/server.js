@@ -10,6 +10,7 @@ import inquiryRouter from './routes/inquiry.routes.js';
 import wishlistRouter from './routes/wishlist.routes.js';
 import contactRouter from './routes/contact.routes.js';
 import adminRouter from './routes/admin.routes.js';
+import chatRouter from './routes/chat.routes.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -18,7 +19,20 @@ const PORT = process.env.PORT || 5000;
 connectDB();
 
 // Middleware
-app.use(cors());
+const allowdOrigins = [
+    "http://localhost:3000",
+].filter(Boolean);
+app.use(cors({
+    origin: function (origin, callback) {
+        if (!origin || allowdOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error("Not allowed by CORS"));
+        }
+    },
+    credentials: true
+}));
+
 app.use(express.json());
 
 // Routes
@@ -29,6 +43,7 @@ app.use("/api/inquiry", inquiryRouter);
 app.use("/api/wishlist", wishlistRouter);
 app.use("/api/contact", contactRouter);
 app.use("/api/admin", adminRouter);
+app.use("/api/chat", chatRouter);
 
 app.get("/", (req, res) => {
     res.send("API is working!")
