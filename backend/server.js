@@ -2,7 +2,10 @@ import express from 'express';
 import cors from 'cors';
 import 'dotenv/config';
 import http from 'http';
+import {Server} from 'socket.io';
+
 import { connectDB } from './config/db.js';
+
 import authRouter from './routes/auth.routes.js';
 import userRouter from './routes/user.routes.js';
 import propertyRouter from './routes/property.routes.js';
@@ -49,7 +52,27 @@ app.get("/", (req, res) => {
     res.send("API is working!")
 });
 
-const  server = http.createServer(app);
+const server = http.createServer(app);
+
+// socket.io setup
+const io = new Server(server, {
+    cors: {
+        origin: allowdOrigins,
+        methods: ["GET", "POST"]
+    }
+});
+
+io.on("connection", (socket) => {
+    socket.on("joinChat", (chatId) => {
+        socket.join(chatId);
+    });
+
+    socket.on("sendMessage", (data) => {
+        io.to(data.chatId).emit("receiveMessage", data);
+    });
+
+    socket.on("disconnect", () => {});
+})
 
 server.listen(PORT, () => {
     console.log(`Server is running on port: ${PORT}`);
